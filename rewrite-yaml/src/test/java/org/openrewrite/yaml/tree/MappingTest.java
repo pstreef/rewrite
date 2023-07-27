@@ -116,6 +116,11 @@ class MappingTest implements RewriteTest {
     }
 
     @Test
+    void mapToEmpty() {
+        rewriteRun(yaml(" null : "));
+    }
+
+    @Test
     void mappingContainingSequence() {
         rewriteRun(
           yaml(

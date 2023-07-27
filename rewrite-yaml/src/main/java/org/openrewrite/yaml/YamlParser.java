@@ -28,6 +28,7 @@ import org.openrewrite.tree.ParsingEventListener;
 import org.openrewrite.tree.ParsingExecutionContextView;
 import org.openrewrite.yaml.tree.Yaml;
 import org.openrewrite.yaml.tree.YamlKey;
+import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.events.*;
 import org.yaml.snakeyaml.parser.Parser;
@@ -245,7 +246,6 @@ public class YamlParser implements org.openrewrite.Parser {
                                 style = Yaml.Scalar.Style.PLAIN;
                                 break;
                         }
-
                         BlockBuilder builder = blockStack.isEmpty() ? null : blockStack.peek();
                         if (builder != null) {
                             int saveCursor = cursor;
@@ -300,11 +300,12 @@ public class YamlParser implements org.openrewrite.Parser {
 //                                fmt = fmt.substring(0, dashPrefixIndex);
 //                            }
                         }
-
                         String startBracketPrefix = null;
-                        if(isNext('[')) {
-                            startBracketPrefix = fmt;
-                            fmt = "";
+                        if(!dash) {
+                            if (isNext('[')) {
+                                startBracketPrefix = fmt;
+                                fmt = "";
+                            }
                         }
 
                         blockStack.push(new SequenceBuilder(dash, fmt, startBracketPrefix, anchor));

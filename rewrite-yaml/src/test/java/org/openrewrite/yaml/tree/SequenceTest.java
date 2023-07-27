@@ -116,8 +116,9 @@ class SequenceTest implements RewriteTest {
         rewriteRun(
           yaml(
             """
-                  - []
+                  -
                   - [ 1 ]
+                  - - 2
               """
           )
         );
