@@ -127,6 +127,7 @@ public class GroovyParser implements Parser {
                                 errorCollector
                         );
 
+                        pctx.getParsingListener().startedParsing(input);
                         CompilationUnit compUnit = new CompilationUnit(configuration, null, classLoader, classLoader);
                         compUnit.addSource(unit);
                         compUnit.compile(Phases.CANONICALIZATION);
@@ -159,7 +160,7 @@ public class GroovyParser implements Parser {
                             gcu = gcu.withMarkers(m);
                         }
                         pctx.getParsingListener().parsed(compiled.getInput(), gcu);
-                        return gcu;
+                        return requirePrintEqualsInput(gcu, input, relativeTo, ctx);
                     } catch (Throwable t) {
                         ctx.getOnError().accept(t);
                         return ParseError.build(this, input, relativeTo, ctx, t);

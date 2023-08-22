@@ -47,6 +47,7 @@ public class Space {
      * So use flyweights to avoid storing many instances of functionally identical spaces
      */
     private static final Map<String, Space> flyweights = new WeakHashMap<>();
+
     static {
         flyweights.put(" ", SINGLE_SPACE);
     }
@@ -63,7 +64,7 @@ public class Space {
                 return Space.EMPTY;
             } else if (whitespace.length() <= 100) {
                 //noinspection StringOperationCanBeSimplified
-                return flyweights.computeIfAbsent(new String(whitespace), k -> new Space(whitespace, comments));
+                return flyweights.computeIfAbsent(whitespace, k -> new Space(new String(whitespace), comments));
             }
         }
         return new Space(whitespace, comments);
@@ -129,34 +130,46 @@ public class Space {
     }
 
     public static Space firstPrefix(@Nullable List<? extends J> trees) {
-        return trees == null || trees.isEmpty() ? Space.EMPTY : trees.iterator().next().getPrefix();
+        return trees == null || trees.isEmpty() ? Space.EMPTY : trees.get(0).getPrefix();
     }
 
     public static Space format(String formatting) {
+        return format(formatting, 0, formatting.length());
+    }
+
+    public static Space format(String formatting, int beginIndex, int toIndex) {
+        if (beginIndex == toIndex) {
+            return Space.EMPTY;
+        } else if (toIndex == beginIndex + 1 && ' ' == formatting.charAt(beginIndex)) {
+            return Space.SINGLE_SPACE;
+        } else {
+            rangeCheck(formatting.length(), beginIndex, toIndex);
+        }
+
         StringBuilder prefix = new StringBuilder();
         StringBuilder comment = new StringBuilder();
-        List<Comment> comments = new ArrayList<>();
+        List<Comment> comments = new ArrayList<>(1);
 
         boolean inSingleLineComment = false;
         boolean inMultiLineComment = false;
 
         char last = 0;
 
-        char[] charArray = formatting.toCharArray();
-        for (char c : charArray) {
+        for (int i = beginIndex; i < toIndex; i++) {
+            char c = formatting.charAt(i);
             switch (c) {
                 case '/':
                     if (inSingleLineComment) {
                         comment.append(c);
                     } else if (last == '/' && !inMultiLineComment) {
                         inSingleLineComment = true;
-                        comment = new StringBuilder();
+                        comment.setLength(0);
                     } else if (last == '*' && inMultiLineComment && comment.length() > 0) {
                         inMultiLineComment = false;
                         comment.setLength(comment.length() - 1); // trim the last '*'
                         comments.add(new TextComment(true, comment.toString(), prefix.toString(), Markers.EMPTY));
-                        prefix = new StringBuilder();
-                        comment = new StringBuilder();
+                        prefix.setLength(0);
+                        comment.setLength(0);
                         continue;
                     } else {
                         comment.append(c);
@@ -167,8 +180,8 @@ public class Space {
                     if (inSingleLineComment) {
                         inSingleLineComment = false;
                         comments.add(new TextComment(false, comment.toString(), prefix.toString(), Markers.EMPTY));
-                        prefix = new StringBuilder();
-                        comment = new StringBuilder();
+                        prefix.setLength(0);
+                        comment.setLength(0);
                         prefix.append(c);
                     } else if (!inMultiLineComment) {
                         prefix.append(c);
@@ -181,7 +194,7 @@ public class Space {
                         comment.append(c);
                     } else if (last == '/' && !inMultiLineComment) {
                         inMultiLineComment = true;
-                        comment = new StringBuilder();
+                        comment.setLength(0);
                     } else {
                         comment.append(c);
                     }
@@ -196,8 +209,9 @@ public class Space {
             last = c;
         }
         // If a file ends with a single-line comment there may be no terminating newline
-        if(!comment.toString().isEmpty()) {
+        if (comment.length() > 0) {
             comments.add(new TextComment(false, comment.toString(), prefix.toString(), Markers.EMPTY));
+            prefix.setLength(0);
         }
 
         // Shift the whitespace on each comment forward to be a suffix of the comment before it, and the
@@ -258,9 +272,8 @@ public class Space {
         StringBuilder printedWs = new StringBuilder();
         int lastNewline = 0;
         if (whitespace != null) {
-            char[] charArray = whitespace.toCharArray();
-            for (int i = 0; i < charArray.length; i++) {
-                char c = charArray[i];
+            for (int i = 0; i < whitespace.length(); i++) {
+                char c = whitespace.charAt(i);
                 if (c == '\n') {
                     printedWs.append("\\n");
                     lastNewline = i + 1;
@@ -276,8 +289,8 @@ public class Space {
         }
 
         return "Space(" +
-                "comments=<" + (comments.size() == 1 ? "1 comment" : comments.size() + " comments") +
-                ">, whitespace='" + printedWs + "')";
+               "comments=<" + (comments.size() == 1 ? "1 comment" : comments.size() + " comments") +
+               ">, whitespace='" + printedWs + "')";
     }
 
     public enum Location {
@@ -429,5 +442,18 @@ public class Space {
         WILDCARD_BOUND,
         WILDCARD_PREFIX,
         YIELD_PREFIX,
+    }
+
+    static void rangeCheck(int arrayLength, int fromIndex, int toIndex) {
+        if (fromIndex > toIndex) {
+            throw new IllegalArgumentException(
+                    "fromIndex(" + fromIndex + ") > toIndex(" + toIndex + ")");
+        }
+        if (fromIndex < 0) {
+            throw new StringIndexOutOfBoundsException(fromIndex);
+        }
+        if (toIndex > arrayLength) {
+            throw new StringIndexOutOfBoundsException(toIndex);
+        }
     }
 }

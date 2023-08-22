@@ -15,6 +15,7 @@
  */
 package org.openrewrite.yaml;
 
+import lombok.Getter;
 import org.openrewrite.internal.lang.NonNull;
 import org.yaml.snakeyaml.events.Event;
 
@@ -31,6 +32,8 @@ class FormatPreservingReader extends Reader {
     private final Reader delegate;
 
     private ArrayList<Character> buffer = new ArrayList<>();
+
+    @Getter
     private int bufferIndex = 0;
 
     FormatPreservingReader(Reader delegate) {
@@ -78,9 +81,6 @@ class FormatPreservingReader extends Reader {
             buffer.ensureCapacity(buffer.size() + read);
             for (int i = 0; i < read; i++) {
                 char e = cbuf[i];
-                if (Character.UnicodeBlock.of(e) != Character.UnicodeBlock.BASIC_LATIN) {
-                    throw new IllegalArgumentException("Only ASCII characters are supported for now");
-                }
                 buffer.add(e);
             }
         }
