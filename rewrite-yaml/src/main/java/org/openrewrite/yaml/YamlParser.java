@@ -15,7 +15,6 @@
  */
 package org.openrewrite.yaml;
 
-import lombok.*;
 import org.intellij.lang.annotations.Language;
 import org.openrewrite.*;
 import org.openrewrite.internal.EncodingDetectingInputStream;
@@ -28,7 +27,6 @@ import org.openrewrite.tree.ParsingEventListener;
 import org.openrewrite.tree.ParsingExecutionContextView;
 import org.openrewrite.yaml.tree.Yaml;
 import org.openrewrite.yaml.tree.YamlKey;
-import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.events.*;
 import org.yaml.snakeyaml.parser.Parser;
@@ -91,17 +89,17 @@ public class YamlParser implements org.openrewrite.Parser {
     private int cursor = 0;
     private String source = "";
     private String whitespace() {
-        int lastIndex = source.length() -1;
-        int start = Math.min(lastIndex, cursor);
-        int i =  Math.min(lastIndex, indexOfNextNonWhitespaceHashComments(start, source));
+        if(cursor >= source.length()) {
+            return "";
+        }
+        int i = indexOfNextNonWhitespaceHashComments(cursor, source);
         String whitespace;
         if(i == -1) {
             whitespace = source.substring(cursor);
-            cursor = lastIndex;
         } else {
-            whitespace = source.substring(start, i);
-            cursor += whitespace.length();
+            whitespace = source.substring(cursor, i);
         }
+        cursor += whitespace.length();
         return whitespace;
     }
     private boolean isNext(char c) {
@@ -149,20 +147,30 @@ public class YamlParser implements org.openrewrite.Parser {
                 switch (event.getEventId()) {
                     case DocumentEnd: {
                         assert document != null;
+                        boolean explicit = ((DocumentEndEvent) event).getExplicit();
+                        String prefix = whitespace();
+                        if(explicit) {
+                            cursor += 3; // skip "..."
+                        }
                         documents.add(document.withEnd(new Yaml.Document.End(
                                 randomId(),
-                                whitespace(),
+                                prefix,
                                 Markers.EMPTY,
-                                ((DocumentEndEvent) event).getExplicit()
+                                explicit
                         )));
                         break;
                     }
                     case DocumentStart: {
+                        boolean explicit = ((DocumentStartEvent) event).getExplicit();
+                        String prefix = whitespace();
+                        if(explicit) {
+                            cursor += 3; // skip "---"
+                        }
                         document = new Yaml.Document(
                                 randomId(),
-                                whitespace(),
+                                prefix,
                                 Markers.EMPTY,
-                                ((DocumentStartEvent) event).getExplicit(),
+                                explicit,
                                 new Yaml.Mapping(randomId(), Markers.EMPTY, null, emptyList(), null, null),
                                 null
                         );
@@ -220,7 +228,9 @@ public class YamlParser implements org.openrewrite.Parser {
                             cursor = saveCursor;
                         }
                         // Use event length rather than scalarValue.length() to account for escape characters and quotes
-                        cursor += event.getEndMark().getIndex() - event.getStartMark().getIndex();
+                        // Use String.offsetByCodePoints in case the string contains multibyte unicode characters
+                        cursor += source.offsetByCodePoints(cursor,
+                                event.getEndMark().getIndex() - event.getStartMark().getIndex()) - cursor;
 
                         Yaml.Scalar.Style style;
                         switch (scalar.getScalarStyle()) {

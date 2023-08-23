@@ -227,8 +227,8 @@ class MappingTest implements RewriteTest {
         rewriteRun(
           yaml(
             """
-                    data :
-                      test : 0
+              data :
+                test : 0
               """
           )
         );
